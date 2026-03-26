@@ -20,6 +20,13 @@ function App() {
   const [status, setStatus] = useState<string>("Ready.");
   const [busy, setBusy] = useState(false);
 
+  const statusKind = useMemo(() => {
+    const s = status.toLowerCase();
+    if (s.includes("failed") || s.includes("error")) return "error";
+    if (busy) return "loading";
+    return "ok";
+  }, [status, busy]);
+
   useEffect(() => {
     const run = async () => {
       try {
@@ -130,12 +137,14 @@ function App() {
           </button>
         </div>
 
-        <p className="hint">{status}</p>
+        <p className={`hint status-${statusKind}`}>{busy ? "Working..." : status}</p>
       </section>
 
       <section className="results">
-        {results.length === 0 ? (
-          <p className="empty">No results yet.</p>
+        {busy ? (
+          <p className="empty">Updating index...</p>
+        ) : results.length === 0 ? (
+          <p className="empty">No results yet. Run reindex and start searching.</p>
         ) : (
           results.map((result) => (
             <article key={result.path} className="result-item">

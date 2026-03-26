@@ -67,6 +67,18 @@ button:hover {
   font-size: 0.9rem;
 }
 
+.status-ok {
+  color: #2f4f6d;
+}
+
+.status-loading {
+  color: #7a5318;
+}
+
+.status-error {
+  color: #b42318;
+}
+
 .folder-list {
   margin: 12px 0;
   padding-left: 20px;
