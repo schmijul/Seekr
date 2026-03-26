@@ -2,6 +2,7 @@ mod config;
 mod crawler;
 mod db;
 mod models;
+mod pdf;
 mod search;
 mod state;
 mod watcher;

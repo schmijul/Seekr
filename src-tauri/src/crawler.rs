@@ -1,4 +1,5 @@
 use crate::db;
+use crate::pdf;
 use rusqlite::Connection;
 use std::collections::HashSet;
 use std::fs;
@@ -20,7 +21,7 @@ fn is_excluded(entry: &DirEntry) -> bool {
 pub fn is_supported_text_file(path: &Path) -> bool {
     matches!(
         path.extension().and_then(|x| x.to_str()).map(|x| x.to_lowercase()),
-        Some(ext) if ext == "txt" || ext == "md"
+        Some(ext) if ext == "txt" || ext == "md" || ext == "pdf"
     )
 }
 
@@ -115,8 +116,6 @@ pub fn index_single_path(conn: &mut Connection, path: &Path) -> Result<bool, Str
         .map_err(|e| format!("canonicalize path failed: {e}"))?;
     let path_str = abs.display().to_string();
 
-    let content = fs::read_to_string(&abs).map_err(|e| format!("read text file failed: {e}"))?;
-
     let title = abs
         .file_name()
         .and_then(|x| x.to_str())
@@ -126,8 +125,17 @@ pub fn index_single_path(conn: &mut Connection, path: &Path) -> Result<bool, Str
     let ext = abs
         .extension()
         .and_then(|x| x.to_str())
-        .map(String::from)
+        .map(|x| x.to_lowercase())
         .unwrap_or_else(|| String::from("txt"));
+
+    let content = match ext.as_str() {
+        "txt" | "md" => fs::read_to_string(&abs).map_err(|e| format!("read text file failed: {e}"))?,
+        "pdf" => match pdf::extract_text(&abs) {
+            Ok(text) => text,
+            Err(_) => return Ok(false),
+        },
+        _ => return Ok(false),
+    };
 
     let modified = modified_ts(&abs);
     let indexed_ts = unix_ts_now();
