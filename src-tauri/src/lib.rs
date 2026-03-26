@@ -1,14 +1,54 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod db;
+mod models;
+mod state;
+
+use models::HealthStatus;
+use state::AppState;
+use std::fs;
+use std::path::PathBuf;
+use tauri::{Manager, State};
+
+fn resolve_db_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let data_dir = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| format!("resolve app data dir failed: {e}"))?;
+
+    fs::create_dir_all(&data_dir).map_err(|e| format!("create app data dir failed: {e}"))?;
+
+    Ok(data_dir.join("seekr.db"))
+}
+
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn init_backend(app: tauri::AppHandle, app_state: State<'_, AppState>) -> Result<HealthStatus, String> {
+    let db_path = resolve_db_path(&app)?;
+    let conn = db::open_or_create(&db_path)?;
+    db::ensure_schema(&conn)?;
+
+    let mut shared = app_state
+        .db_path
+        .lock()
+        .map_err(|_| String::from("db path lock poisoned"))?;
+    *shared = Some(db_path.clone());
+
+    Ok(HealthStatus {
+        ok: true,
+        db_path: db_path.display().to_string(),
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .manage(AppState::default())
+        .setup(|app| {
+            let db_path = resolve_db_path(app.handle())?;
+            let conn = db::open_or_create(&db_path)?;
+            db::ensure_schema(&conn)?;
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![init_backend])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
