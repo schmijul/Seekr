@@ -132,6 +132,10 @@ button:hover {
   color: #4e6077;
 }
 
+.open-btn {
+  margin-top: 10px;
+}
+
 @media (max-width: 700px) {
   .app-shell {
     padding: 18px 14px 28px;

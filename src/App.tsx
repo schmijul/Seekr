@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { useEffect, useMemo, useState } from "react";
 import type { ReindexStatus, SearchResult } from "./types";
 import "./App.css";
@@ -145,6 +146,19 @@ function App() {
               <p className="path">{result.path}</p>
               <p className="snippet" dangerouslySetInnerHTML={{ __html: result.snippet }} />
               <p className="meta">Modified: {formatModified(result.modifiedTs)}</p>
+              <button
+                type="button"
+                className="open-btn"
+                onClick={async () => {
+                  try {
+                    await openPath(result.path);
+                  } catch (err) {
+                    setStatus(`Open failed: ${String(err)}`);
+                  }
+                }}
+              >
+                Open file
+              </button>
             </article>
           ))
         )}
