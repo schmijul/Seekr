@@ -17,7 +17,7 @@ fn is_excluded(entry: &DirEntry) -> bool {
     EXCLUDED_DIRS.iter().any(|x| *x == name)
 }
 
-fn is_supported_text_file(path: &Path) -> bool {
+pub fn is_supported_text_file(path: &Path) -> bool {
     matches!(
         path.extension().and_then(|x| x.to_str()).map(|x| x.to_lowercase()),
         Some(ext) if ext == "txt" || ext == "md"
@@ -83,42 +83,16 @@ pub fn crawl_and_index(conn: &mut Connection, roots: &[String]) -> Result<IndexS
                 }
             };
             let path_str = abs.display().to_string();
-
-            let content = match fs::read_to_string(&abs) {
-                Ok(x) => x,
+            match index_single_path(conn, &abs) {
+                Ok(true) => {
+                    seen_paths.insert(path_str);
+                    indexed += 1;
+                }
+                Ok(false) => {}
                 Err(_) => {
                     failed += 1;
-                    continue;
                 }
-            };
-
-            let title = abs
-                .file_name()
-                .and_then(|x| x.to_str())
-                .map(String::from)
-                .unwrap_or_else(|| String::from("unknown"));
-
-            let ext = abs
-                .extension()
-                .and_then(|x| x.to_str())
-                .map(String::from)
-                .unwrap_or_else(|| String::from("txt"));
-
-            let modified = modified_ts(&abs);
-            let indexed_ts = unix_ts_now();
-
-            db::upsert_file(
-                conn,
-                &path_str,
-                &title,
-                &ext,
-                modified,
-                indexed_ts,
-                &content,
-            )?;
-
-            seen_paths.insert(path_str);
-            indexed += 1;
+            }
         }
     }
 
@@ -129,4 +103,37 @@ pub fn crawl_and_index(conn: &mut Connection, roots: &[String]) -> Result<IndexS
         removed,
         failed,
     })
+}
+
+pub fn index_single_path(conn: &mut Connection, path: &Path) -> Result<bool, String> {
+    if !path.is_file() || !is_supported_text_file(path) {
+        return Ok(false);
+    }
+
+    let abs = path
+        .canonicalize()
+        .map_err(|e| format!("canonicalize path failed: {e}"))?;
+    let path_str = abs.display().to_string();
+
+    let content = fs::read_to_string(&abs).map_err(|e| format!("read text file failed: {e}"))?;
+
+    let title = abs
+        .file_name()
+        .and_then(|x| x.to_str())
+        .map(String::from)
+        .unwrap_or_else(|| String::from("unknown"));
+
+    let ext = abs
+        .extension()
+        .and_then(|x| x.to_str())
+        .map(String::from)
+        .unwrap_or_else(|| String::from("txt"));
+
+    let modified = modified_ts(&abs);
+    let indexed_ts = unix_ts_now();
+
+    db::upsert_file(
+        conn, &path_str, &title, &ext, modified, indexed_ts, &content,
+    )?;
+    Ok(true)
 }

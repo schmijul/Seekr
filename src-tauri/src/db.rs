@@ -114,3 +114,9 @@ pub fn delete_missing_outside_seen(
 
     Ok(removed)
 }
+
+pub fn delete_file_by_path(conn: &Connection, path: &str) -> Result<(), String> {
+    conn.execute("DELETE FROM indexed_files WHERE path = ?1", params![path])
+        .map_err(|e| format!("delete by path failed: {e}"))?;
+    Ok(())
+}

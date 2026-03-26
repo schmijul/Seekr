@@ -4,6 +4,7 @@ mod db;
 mod models;
 mod search;
 mod state;
+mod watcher;
 
 use models::{HealthStatus, ReindexStatus, SearchResult};
 use state::AppState;
@@ -20,6 +21,16 @@ fn resolve_db_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     fs::create_dir_all(&data_dir).map_err(|e| format!("create app data dir failed: {e}"))?;
 
     Ok(data_dir.join("seekr.db"))
+}
+
+fn restart_watchers(app_state: &State<'_, AppState>, db_path: PathBuf, roots: &[String]) -> Result<(), String> {
+    let watchers = watcher::build_watchers(db_path, roots)?;
+    let mut shared = app_state
+        .watchers
+        .lock()
+        .map_err(|_| String::from("watcher lock poisoned"))?;
+    *shared = watchers;
+    Ok(())
 }
 
 #[tauri::command]
@@ -47,7 +58,10 @@ fn set_index_roots(app: tauri::AppHandle, roots: Vec<String>) -> Result<Vec<Stri
     db::ensure_schema(&conn)?;
     config::ensure_config_tables(&conn)?;
     config::set_roots(&mut conn, &roots)?;
-    config::get_roots(&conn)
+    let saved = config::get_roots(&conn)?;
+    let state = app.state::<AppState>();
+    restart_watchers(&state, db_path, &saved)?;
+    Ok(saved)
 }
 
 #[tauri::command]
@@ -107,6 +121,9 @@ pub fn run() {
             let conn = db::open_or_create(&db_path)?;
             db::ensure_schema(&conn)?;
             config::ensure_config_tables(&conn)?;
+            let roots = config::get_roots(&conn)?;
+            let state = app.state::<AppState>();
+            restart_watchers(&state, db_path, &roots)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
