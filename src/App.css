@@ -81,6 +81,12 @@ button:hover {
   font-size: 1rem;
 }
 
+.search-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
 .results {
   margin-top: 16px;
   display: grid;
@@ -117,6 +123,11 @@ button:hover {
   margin: 8px 0 0;
 }
 
+.snippet mark {
+  background: #ffef86;
+  padding: 0 2px;
+}
+
 .empty {
   color: #4e6077;
 }
@@ -128,5 +139,9 @@ button:hover {
 
   .app-header h1 {
     font-size: 1.6rem;
+  }
+
+  .search-row {
+    grid-template-columns: 1fr;
   }
 }

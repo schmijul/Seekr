@@ -14,3 +14,13 @@ pub struct ReindexStatus {
     pub removed: usize,
     pub failed: usize,
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResult {
+    pub title: String,
+    pub path: String,
+    pub snippet: String,
+    pub file_type: String,
+    pub modified_ts: i64,
+}

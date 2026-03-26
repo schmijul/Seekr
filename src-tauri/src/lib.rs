@@ -2,9 +2,10 @@ mod config;
 mod crawler;
 mod db;
 mod models;
+mod search;
 mod state;
 
-use models::{HealthStatus, ReindexStatus};
+use models::{HealthStatus, ReindexStatus, SearchResult};
 use state::AppState;
 use std::fs;
 use std::path::PathBuf;
@@ -74,10 +75,32 @@ fn run_full_reindex(app: tauri::AppHandle) -> Result<ReindexStatus, String> {
     })
 }
 
+#[tauri::command]
+fn search_index(app: tauri::AppHandle, query: String, limit: Option<usize>) -> Result<Vec<SearchResult>, String> {
+    let db_path = resolve_db_path(&app)?;
+    let conn = db::open_or_create(&db_path)?;
+    db::ensure_schema(&conn)?;
+
+    let found = search::search(&conn, &query, limit.unwrap_or(100))?;
+    let mut out = Vec::with_capacity(found.len());
+    for row in found {
+        out.push(SearchResult {
+            title: row.title,
+            path: row.path,
+            snippet: row.snippet,
+            file_type: row.file_type,
+            modified_ts: row.modified_ts,
+        });
+    }
+
+    Ok(out)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .setup(|app| {
             let db_path = resolve_db_path(app.handle())?;
@@ -90,7 +113,8 @@ pub fn run() {
             init_backend,
             set_index_roots,
             get_index_roots,
-            run_full_reindex
+            run_full_reindex,
+            search_index
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
