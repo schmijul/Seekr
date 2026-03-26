@@ -1,4 +1,6 @@
 use rusqlite::Connection;
+use rusqlite::params;
+use std::collections::HashSet;
 use std::path::Path;
 
 pub fn open_or_create(db_path: &Path) -> Result<Connection, String> {
@@ -51,4 +53,64 @@ pub fn ensure_schema(conn: &Connection) -> Result<(), String> {
         "#,
     )
     .map_err(|e| format!("schema init failed: {e}"))
+}
+
+pub fn upsert_file(
+    conn: &Connection,
+    path: &str,
+    title: &str,
+    extension: &str,
+    modified_ts: i64,
+    indexed_ts: i64,
+    content: &str,
+) -> Result<(), String> {
+    conn.execute(
+        r#"
+        INSERT INTO indexed_files(path, title, extension, modified_ts, indexed_ts, content)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(path) DO UPDATE SET
+          title=excluded.title,
+          extension=excluded.extension,
+          modified_ts=excluded.modified_ts,
+          indexed_ts=excluded.indexed_ts,
+          content=excluded.content
+        "#,
+        params![path, title, extension, modified_ts, indexed_ts, content],
+    )
+    .map_err(|e| format!("upsert file failed: {e}"))?;
+
+    Ok(())
+}
+
+pub fn delete_missing_outside_seen(
+    conn: &Connection,
+    roots: &[String],
+    seen_paths: &HashSet<String>,
+) -> Result<usize, String> {
+    let mut stmt = conn
+        .prepare("SELECT path FROM indexed_files")
+        .map_err(|e| format!("prepare indexed_files scan failed: {e}"))?;
+
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| format!("query indexed_files scan failed: {e}"))?;
+
+    let mut to_remove = Vec::new();
+
+    for row in rows {
+        let path = row.map_err(|e| format!("read indexed file row failed: {e}"))?;
+        let under_roots = roots.iter().any(|root| path.starts_with(root));
+        if under_roots && !seen_paths.contains(&path) {
+            to_remove.push(path);
+        }
+    }
+
+    let mut removed = 0usize;
+    for path in to_remove {
+        conn.execute("DELETE FROM indexed_files WHERE path = ?1", params![path])
+            .map_err(|e| format!("delete stale file failed: {e}"))?;
+        removed += 1;
+    }
+
+    Ok(removed)
 }
