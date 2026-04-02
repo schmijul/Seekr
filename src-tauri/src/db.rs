@@ -31,19 +31,21 @@ pub fn ensure_schema(conn: &Connection) -> Result<(), String> {
             tokenize='porter unicode61'
         );
 
-        CREATE TRIGGER IF NOT EXISTS indexed_files_ai AFTER INSERT ON indexed_files BEGIN
+                DROP TRIGGER IF EXISTS indexed_files_ai;
+                DROP TRIGGER IF EXISTS indexed_files_ad;
+                DROP TRIGGER IF EXISTS indexed_files_au;
+
+                CREATE TRIGGER indexed_files_ai AFTER INSERT ON indexed_files BEGIN
           INSERT INTO indexed_files_fts(rowid, path, title, content)
           VALUES (new.id, new.path, new.title, new.content);
         END;
 
-        CREATE TRIGGER IF NOT EXISTS indexed_files_ad AFTER DELETE ON indexed_files BEGIN
-          INSERT INTO indexed_files_fts(indexed_files_fts, rowid, path, title, content)
-          VALUES ('delete', old.id, old.path, old.title, old.content);
+                CREATE TRIGGER indexed_files_ad AFTER DELETE ON indexed_files BEGIN
+                    DELETE FROM indexed_files_fts WHERE rowid = old.id;
         END;
 
-        CREATE TRIGGER IF NOT EXISTS indexed_files_au AFTER UPDATE ON indexed_files BEGIN
-          INSERT INTO indexed_files_fts(indexed_files_fts, rowid, path, title, content)
-          VALUES ('delete', old.id, old.path, old.title, old.content);
+                CREATE TRIGGER indexed_files_au AFTER UPDATE ON indexed_files BEGIN
+                    DELETE FROM indexed_files_fts WHERE rowid = old.id;
           INSERT INTO indexed_files_fts(rowid, path, title, content)
           VALUES (new.id, new.path, new.title, new.content);
         END;

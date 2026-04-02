@@ -3,6 +3,7 @@
 Seekr is a free, local-first desktop search app built with Tauri + Rust + React.
 
 ![Seekr screenshot](imgs/readme1.png)
+![Seekr search results](imgs/readme2.png)
 
 It indexes files on your machine and searches fully offline. No cloud, no telemetry, no external APIs, no paid services.
 
