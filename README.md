@@ -17,7 +17,7 @@ It indexes code and documentation on your machine and searches fully offline. No
   - code chunks
   - symbols
   - `.md`
-  - common source files such as `.rs`, `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.go`, `.java`, `.kt`, `.json`, `.yaml`, `.yml`, `.toml`
+  - common source files such as `.c`, `.h`, `.cpp`, `.hpp`, `.rs`, `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.go`, `.java`, `.kt`, `.json`, `.yaml`, `.yml`, `.toml`
 - Result list shows:
   - title / filename
   - full path
@@ -113,6 +113,34 @@ For larger codebases, prefer:
 1. a single local monorepo root
 2. a clean reindex first
 3. focused searches by symbol name, filename fragment, or unique string
+
+## CLI (for agents)
+
+A minimal CLI is available in `src-tauri` as `seekr-cli`:
+
+```bash
+cargo run --manifest-path src-tauri/Cargo.toml --bin seekr-cli -- snapshot --root /path/to/repo
+cargo run --manifest-path src-tauri/Cargo.toml --bin seekr-cli -- search-text --root /path/to/repo --query "buildIndex"
+cargo run --manifest-path src-tauri/Cargo.toml --bin seekr-cli -- search-symbols --root /path/to/repo --query "FooService"
+```
+
+Recommended workflow:
+1. Run `snapshot` after initial setup, branch changes, or larger file changes.
+2. Run `search-text` for content/string queries.
+3. Run `search-symbols` for function/class/type lookups.
+
+Optional flags:
+- `--db <path>`: custom SQLite file path
+- `--index-dir <path>`: custom Tantivy index directory
+- `--limit <n>`: maximum result count for search commands
+
+Default storage (if no flags are passed):
+- `<repo-root>/.seekr/seekr.db`
+- `<repo-root>/.seekr/seekr-index/`
+
+Troubleshooting:
+- If search returns no hits, run `snapshot` first.
+- If your shell points at the wrong repo, verify `--root` is the repo you indexed.
 
 ## Commands implemented
 

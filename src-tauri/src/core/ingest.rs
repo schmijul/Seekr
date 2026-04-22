@@ -39,6 +39,8 @@ pub fn build_snapshot(conn: &Connection, index_dir: &Path, root_path: &str) -> R
     for cand in &candidates {
         let file_id = file_id(&ws.workspace_id, &cand.rel_path);
         keep_paths.push(cand.rel_path.clone());
+        let (chunks, symbols, ast_used) =
+            parser::extract_chunks_and_symbols(&cand.rel_path, &cand.language, &cand.content);
         if let Err(err) = index_store::upsert_file(
             conn,
             &file_id,
@@ -48,15 +50,13 @@ pub fn build_snapshot(conn: &Connection, index_dir: &Path, root_path: &str) -> R
             cand.size_bytes,
             cand.mtime_ns,
             &cand.content_hash,
-            "ok",
+            if ast_used { "ast_ok" } else { "fallback_ok" },
             &cand.content,
         ) {
             failed += 1;
             let _ = index_store::log_index_error(conn, &ws.workspace_id, Some(&cand.rel_path), &err);
             continue;
         }
-        let chunks = parser::chunk_by_lines(&cand.rel_path, &cand.content, 120, 20);
-        let symbols = parser::extract_symbols(&cand.rel_path, &cand.language, &cand.content);
         if let Err(err) = index_store::replace_chunks_for_file(conn, &ws.workspace_id, &file_id, &chunks) {
             failed += 1;
             let _ = index_store::log_index_error(conn, &ws.workspace_id, Some(&cand.rel_path), &err);
@@ -175,6 +175,7 @@ pub fn get_workspace_status(conn: &Connection, root_path: &str) -> Result<Worksp
 }
 
 pub fn resolve_workspace_id(conn: &Connection, root_path: &str) -> Result<String, String> {
+    index_store::ensure_schema(conn)?;
     if let Some(rec) = index_store::get_workspace_by_root(conn, root_path)? {
         return Ok(rec.workspace_id);
     }

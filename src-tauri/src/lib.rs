@@ -1,7 +1,7 @@
 mod config;
-mod core;
+pub mod core;
 mod crawler;
-mod db;
+pub mod db;
 mod models;
 mod pdf;
 mod search;

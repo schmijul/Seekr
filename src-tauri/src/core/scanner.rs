@@ -31,6 +31,10 @@ pub struct FileCandidate {
 pub fn extension_to_language(path: &Path) -> Option<&'static str> {
     let ext = path.extension()?.to_string_lossy().to_lowercase();
     match ext.as_str() {
+        "c" => Some("c"),
+        "h" => Some("c-header"),
+        "cpp" | "cc" | "cxx" => Some("cpp"),
+        "hpp" | "hh" | "hxx" => Some("cpp-header"),
         "rs" => Some("rust"),
         "ts" => Some("typescript"),
         "tsx" => Some("tsx"),
@@ -123,4 +127,22 @@ pub fn scan_workspace(root: &str) -> Result<Vec<FileCandidate>, String> {
         });
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extension_to_language;
+    use std::path::Path;
+
+    #[test]
+    fn supports_c_cpp_and_headers() {
+        assert_eq!(extension_to_language(Path::new("main.c")), Some("c"));
+        assert_eq!(extension_to_language(Path::new("main.cpp")), Some("cpp"));
+        assert_eq!(extension_to_language(Path::new("main.cc")), Some("cpp"));
+        assert_eq!(extension_to_language(Path::new("main.cxx")), Some("cpp"));
+        assert_eq!(extension_to_language(Path::new("main.h")), Some("c-header"));
+        assert_eq!(extension_to_language(Path::new("main.hpp")), Some("cpp-header"));
+        assert_eq!(extension_to_language(Path::new("main.hh")), Some("cpp-header"));
+        assert_eq!(extension_to_language(Path::new("main.hxx")), Some("cpp-header"));
+    }
 }
