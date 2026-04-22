@@ -16,6 +16,7 @@ It indexes code and documentation on your machine and searches fully offline. No
   - file names
   - code chunks
   - symbols
+  - C/C++ codebases (including header files)
   - `.md`
   - common source files such as `.c`, `.h`, `.cpp`, `.hpp`, `.rs`, `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.go`, `.java`, `.kt`, `.json`, `.yaml`, `.yml`, `.toml`
 - Result list shows:
