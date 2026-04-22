@@ -1,44 +1,43 @@
 # Seekr
 
-Seekr is a free, local-first desktop search app built with Tauri + Rust + React.
+Seekr is a local code retrieval engine for coding agents and humans.
 
 ![Seekr screenshot](imgs/readme1.png)
 ![Seekr search results](imgs/readme2.png)
 
-It indexes files on your machine and searches fully offline. No cloud, no telemetry, no external APIs, no paid services.
+It indexes code and documentation on your machine and searches fully offline. No cloud, no telemetry, no external APIs, no paid services.
 
-
-
-## Features (v1)
+## Features
 
 - Desktop app (Tauri v2)
 - Local-only indexing and search
 - User-selected index folders
 - Search across:
   - file names
-  - `.txt`
+  - code chunks
+  - symbols
   - `.md`
-  - `.pdf` (text extraction)
+  - common source files such as `.rs`, `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.go`, `.java`, `.kt`, `.json`, `.yaml`, `.yml`, `.toml`
 - Result list shows:
   - title / filename
   - full path
-  - snippet preview with highlighted match
-  - file type
-  - last modified time
+  - snippet preview
+  - file type / language
 - Open result with system default app
-- Excludes noisy folders:
-  - `.git`, `node_modules`, `dist`, `target`, `venv`, `__pycache__`
-- Incremental updates via file watcher
+- Excludes noisy folders via ignore rules
+- Snapshot indexing plus incremental watcher support
 - Works offline
 
 ## Stack
 
 - Desktop shell: Tauri v2
 - Backend: Rust
-- Index and search: SQLite + FTS5 (`rusqlite`)
+- Index and search: SQLite metadata + Tantivy text index
 - File crawling: `walkdir`
+- Ignore handling: `ignore`
 - File watching: `notify`
-- PDF extraction: `pdf-extract`
+- Code/file hashing: `sha2`
+- Time handling: `chrono`
 - Frontend: React + Vite + TypeScript
 
 ## Architecture
@@ -46,27 +45,30 @@ It indexes files on your machine and searches fully offline. No cloud, no teleme
 - Frontend (`src/`): UI, folder selection, reindex/search actions
 - Backend (`src-tauri/src/`):
   - `lib.rs`: Tauri commands and app wiring
-  - `db.rs`: schema + DB helpers
-  - `config.rs`: index root persistence
-  - `crawler.rs`: full crawl + indexing logic
+  - `core/workspace.rs`: workspace identity and repo metadata
+  - `core/scanner.rs`: file discovery, ignore rules, file classification
+  - `core/parser.rs`: chunking and lightweight symbol extraction
+  - `core/index_store.rs`: SQLite schema and persistence helpers
+  - `core/text_index.rs`: Tantivy document build and search
+  - `core/ingest.rs`: snapshot indexing workflow
+  - `core/query.rs`: text, symbol, chunk, and error lookup APIs
+  - `core/lsp.rs`: LSP capability scaffold
   - `watcher.rs`: incremental file updates
-  - `search.rs`: FTS query + ranking
-  - `pdf.rs`: PDF text extraction wrapper
 
 ### Data model
 
-- `indexed_files`
-  - canonical file path (unique)
-  - title
-  - extension
-  - modified/index timestamps
-  - full extracted text content
-- `indexed_files_fts` (FTS5 virtual table)
-  - indexed `path`, `title`, `content`
-  - `bm25` ranking
-  - snippet generation with `<mark>` highlights
-- `indexed_roots`
-  - user-configured root folders
+- `workspaces`
+  - workspace root and repository metadata
+- `files`
+  - file path, language, hash, timestamps, parsed content
+- `chunks`
+  - line windows for code retrieval
+- `symbols`
+  - lightweight definition records
+- `references`
+  - reference lookup scaffold
+- `index_errors`
+  - per-file and per-job failures
 
 ## Local setup
 
@@ -107,9 +109,24 @@ npm run tauri dev
 4. Search with the main search field
 5. Click `Open file` on a result to open with your default app
 
+For larger codebases, prefer:
+1. a single local monorepo root
+2. a clean reindex first
+3. focused searches by symbol name, filename fragment, or unique string
+
 ## Commands implemented
 
 - `init_backend`
+- `open_workspace`
+- `get_workspace_status`
+- `start_snapshot_index`
+- `search_text`
+- `search_symbols`
+- `lookup_definition`
+- `find_references`
+- `get_chunk`
+- `get_file_excerpt`
+- `list_recent_index_errors`
 - `get_index_roots`
 - `set_index_roots`
 - `run_full_reindex`
@@ -117,11 +134,10 @@ npm run tauri dev
 
 ## Tradeoffs and known limitations
 
-- PDF support is best-effort. Some PDFs (scanned/image-only or unusual encodings) may not extract text. Seekr skips those files instead of failing the whole index.
-- Initial indexing is full crawl. Incremental updates are watcher-based after that.
-- Watchers are active for currently saved roots; changing roots resets watcher set.
-- Search is lexical FTS5 only (no embeddings/AI).
-- v1 focuses on `txt`, `md`, `pdf`; other formats are out of scope.
+- Snapshot indexing is implemented first; incremental watcher handling is present but still basic.
+- Symbol extraction is heuristic in the current backend and Tree-sitter/LSP are not fully wired yet.
+- Search is lexical plus structured retrieval, but not embeddings-first.
+- The codebase currently favors a single local monorepo over multi-repo workspace support.
 
 ## Privacy
 
@@ -131,8 +147,7 @@ npm run tauri dev
 
 ## Project status
 
-MVP is implemented and builds with:
+Current build status:
 
 - `npm run build`
 - `cargo check` (in `src-tauri`)
-
