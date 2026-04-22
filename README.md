@@ -1,11 +1,11 @@
 # Seekr
 
-Seekr is a local code retrieval engine for coding agents and humans.
+Seekr is a local-first search and retrieval platform for humans and coding agents.
 
 ![Seekr screenshot](imgs/readme1.png)
 ![Seekr search results](imgs/readme2.png)
 
-It indexes code and documentation on your machine and searches fully offline. No cloud, no telemetry, no external APIs, no paid services.
+It indexes code, documents, and project context on your machine and searches fully offline. No cloud, no telemetry, no external APIs, no paid services.
 
 ## Features
 
